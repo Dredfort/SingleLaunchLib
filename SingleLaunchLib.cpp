@@ -139,7 +139,7 @@ namespace SingleLaunch
 		return i;
 	}
 
-	void SingleLaunch::SingleLaunch_Base::ThteadServerLis(SOCKET sock, sockaddr_in in_addr, const int port)
+	void SingleLaunch::SingleLaunch_Base::ThteadServerLis(SOCKET sock, sockaddr_in addr, const int port)
 	{
 		FOREVER()
 		{
@@ -325,8 +325,8 @@ namespace SingleLaunch
 							// Send message to the client to close it.
 							if (counter >= CopiesTreshold)
 							{
-								in_addr.sin_port = client_addr.sin_port;
-								in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+								addr.sin_port = client_addr.sin_port;
+								addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 								sendto(sock, "close_command", sizeof("close_command"), 0, (sockaddr*)&in_addr, sizeof(in_addr));
 
 							}
@@ -347,8 +347,8 @@ namespace SingleLaunch
 									int intStr = std::stoi(*it);
 									if (intStr != port)
 									{
-										in_addr.sin_port = htons(intStr);
-										in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+										addr.sin_port = htons(intStr);
+										addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 
 										for (vector<string>::iterator Kt = localClients.begin(); Kt != localClients.end(); ++Kt)
 										{
@@ -356,7 +356,7 @@ namespace SingleLaunch
 											//s = s + "\n";
 											const size_t len = s.size();
 											char const *pchar = s.c_str();
-											sendto(sock, &pchar[0], len, 0, (sockaddr*)&in_addr, sizeof(in_addr));
+											sendto(sock, &pchar[0], len, 0, (sockaddr*)&addr, sizeof(addr));
 										}
 									}
 								}
