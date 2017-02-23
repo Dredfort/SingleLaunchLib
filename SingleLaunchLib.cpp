@@ -33,6 +33,9 @@ sockaddr_in out_addr;
 sockaddr_in client_in_addr;
 
 sockaddr_in out_addr2;
+sockaddr_in client_in_addr2;
+
+std::string localPort;
 
 HANDLE mut;
 
@@ -86,34 +89,20 @@ namespace SingleLaunch
 		struct hostent* pHost = 0;
 		pHost = gethostbyname(szHostName);
 		hostName = szHostName;
-
-
-		//cout << "----------------\n";
-		//cout << "==>Send test msg.\n";
-		//cout << "----------------\n";
-
-		//char msg[20] = "ping";
-		///*in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
-		//cout << "from port " << ntohs(in_addr.sin_port) << endl;
-		//sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&in_addr, sizeof(in_addr));
-		//printf("\nC=>S:%s\n", &msg[0]);*/
-		//sockaddr_in send_addr;
-		//send_addr.sin_family = AF_INET;
-		//send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-		//send_addr.sin_port = htons(portServer);
-		//send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
-
-		//cout << "from port " << ntohs(send_addr.sin_port) << endl;
-		//sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
-		//printf("\nC=>S:%s\n", &msg[0]);
+		
+		
 
 		hMutex = CreateMutex(NULL, FALSE, NULL);
 		// make thread.
 		std::thread clientThr(ThteadClientLis, client_sock, out_addr2, portClient);
 		clientThr.detach();
 
-		std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
-		lisentThread.detach();
+		if (a == 0 && b == 0)
+		{
+			std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
+			lisentThread.detach();
+
+		}
 
 	}
 
@@ -166,7 +155,7 @@ namespace SingleLaunch
 
 	void SingleLaunch::SingleLaunch_Base::ThteadClientLis(SOCKET sock, sockaddr_in addr, const int portID)
 	{
-		WaitForSingleObject(hMutex, INFINITE);
+WaitForSingleObject(hMutex, INFINITE);
 
 		cout << "----------------\n";
 		cout << "==>Send test msg.\n";
@@ -180,17 +169,82 @@ namespace SingleLaunch
 		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 
 		cout << "from port " << ntohs(send_addr.sin_port) << endl;
-		sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		sendto(sock/*server_sock*/, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
 		printf("\nC=>S:%s\n", &msg[0]);
 
-		ReleaseMutex(hMutex);
+		FOREVER()
+		{
+			if (!bAcceptMessages)
+				return;
+			// Обработка присланных пактов
+			//sockaddr_in client_addr;
+			int client_addr_size = sizeof(client_in_addr2);
+			int buffSize = sizeof(buff);
+
+ReleaseMutex(hMutex);
+
+			int bsize = recvfrom(sock, &buff[0], buffSize - 1, 0, (sockaddr *)&client_in_addr2, &client_addr_size);
+			if (bsize == SOCKET_ERROR)
+				printf("recvfrom() error: %d\n", WSAGetLastError());
+			else
+			{
+
+				// TODO:: get and accept messages here
+				std::string str(buff);
+				std::string closeCommandStr("close_command");
+
+				std::string qwe = std::to_string(portClient);
+				size_t pos = str.find(qwe);
+				if (pos == string::npos)
+				{
+					localPort = str;
+				}
+
+
+				size_t position = str.find(closeCommandStr);
+				if (position != string::npos)
+				{
+					// TODO:: Send message to the client to close it.
+					cout << " You launch maximum copies count! - " << counter << endl;
+					cout << " Q - to end session. " << counter << endl;
+					char myChar = ' ';
+					while (myChar != 'q') {
+
+						myChar = getchar();
+					}
+
+					//EndSession();
+					
+					std::cout << ntohs(client_in_addr.sin_port) << endl;
+
+
+					std::string s = "close";
+					s.append("_");
+					s.append(std::to_string(ntohs(client_in_addr.sin_port)));
+
+
+					const size_t len = s.size();
+					const char *pchar = s.c_str();
+
+					/*sendto(server_sock, &pchar[0], len
+						, 0, (sockaddr*)&out_addr, sizeof(out_addr));*/
+					sendto(sock/*server_sock*/, &pchar[0], len
+						, 0, (sockaddr*)&send_addr, sizeof(send_addr));
+
+					return;
+				}
+			}
+		}
+
 	}
 
 	void SingleLaunch::SingleLaunch_Base::ThteadServerLis(SOCKET sock, sockaddr_in addr, const int port)
 	{
 		FOREVER()
 		{
-			WaitForSingleObject(hMutex, INFINITE);
+			Sleep(1000);
+
+WaitForSingleObject(hMutex, INFINITE);
 
 			if (!bAcceptMessages)
 				return;
@@ -201,7 +255,10 @@ namespace SingleLaunch
 			int bsize = recvfrom(sock, &buff[0], buffSize - 1, 0, (sockaddr *)&client_in_addr, &client_addr_size);
 
 			if (bsize == SOCKET_ERROR)
+			{
 				printf("recvfrom() error: %d\n", WSAGetLastError());
+				ReleaseMutex(hMutex);
+			}
 			else
 				if (bAcceptMessages)
 				{
@@ -376,7 +433,9 @@ namespace SingleLaunch
 							{
 								addr.sin_port = client_in_addr.sin_port;
 								addr.sin_addr.s_addr = inet_addr(SERVERADDR);
-								sendto(sock, "close_command", sizeof("close_command"), 0, (sockaddr*)&out_addr, sizeof(out_addr));
+								sendto(sock, "close_command", sizeof("close_command"), 0,
+									(sockaddr*)&client_in_addr/*out_addr*/,
+									sizeof(client_in_addr/*out_addr*/));
 
 							}
 							else
@@ -444,7 +503,7 @@ namespace SingleLaunch
 					}
 				}
 
-			ReleaseMutex(hMutex);
+ReleaseMutex(hMutex);
 		}
 	}
 
@@ -458,6 +517,24 @@ namespace SingleLaunch
 	void SingleLaunch::SingleLaunch_Base::EndSession()
 	{
 		bAcceptMessages = false;
+
+		sockaddr_in send_addr;
+		send_addr.sin_family = AF_INET;
+		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		send_addr.sin_port = htons(portServer);
+		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+
+				std::string s = "close";
+				s.append("_");
+				s.append(localPort /*std::to_string(ntohs(client_in_addr.sin_port))*/);
+
+				const size_t len = s.size();
+				const char *pchar = s.c_str();
+
+
+		sendto(client_sock/*server_sock*/, &pchar[0], len
+			, 0, (sockaddr*)&send_addr, sizeof(send_addr));
+
 		// local
 		for (vector<string>::iterator it = localClients.begin(); it != localClients.end(); ++it)
 		{
@@ -468,13 +545,9 @@ namespace SingleLaunch
 				std::cout << ntohs(client_in_addr.sin_port) << endl;
 
 
-				std::string s = "close";
-				s.append("_");
-				s.append(std::to_string(ntohs(client_in_addr.sin_port)));
 
 
-				const size_t len = s.size();
-				const char *pchar = s.c_str();
+				
 
 				out_addr.sin_port = htons(intStr);
 				out_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
@@ -482,6 +555,7 @@ namespace SingleLaunch
 				sendto(server_sock, &pchar[0], len
 					, 0, (sockaddr*)&out_addr, sizeof(out_addr));
 			}
+			Sleep(1000);
 		}
 
 		// net
