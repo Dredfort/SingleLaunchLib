@@ -29,6 +29,7 @@ namespace SingleLaunch
 	protected:
 
 		int MaxCopies;
+		
 		/*std::vector<string> netClients;
 		std::vector<string> localClients;
 		SOCKET my_sock;

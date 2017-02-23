@@ -28,10 +28,16 @@ bool bAcceptMessages = true;
 std::vector<string> netClients;
 std::vector<string> localClients;
 static SOCKET server_sock, client_sock;
+
 sockaddr_in out_addr;
-sockaddr_in client_addr;
+sockaddr_in client_in_addr;
+
+sockaddr_in out_addr2;
 
 HANDLE mut;
+
+HANDLE hMutex;
+
 HANDLE myHandle;
 char buff[2048];
 unsigned int counter = 1;
@@ -62,10 +68,13 @@ namespace SingleLaunch
 		CopiesTreshold = MaxCopies;
 
 		// Inti WinSock
-
+		out_addr2 = InitWinSocket(client_sock, portClient);
+		int a = mBindSocket(client_sock, out_addr2, portClient);
 
 		out_addr = InitWinSocket(server_sock, portServer);
-		mBindSocket(server_sock, out_addr, portServer);
+		int b = mBindSocket(server_sock, out_addr, portServer);
+
+
 
 		// Get local host name.
 		char szHostName[128] = "";
@@ -79,34 +88,37 @@ namespace SingleLaunch
 		hostName = szHostName;
 
 
-		cout << "----------------\n";
-		cout << "==>Send test msg.\n";
-		cout << "----------------\n";
+		//cout << "----------------\n";
+		//cout << "==>Send test msg.\n";
+		//cout << "----------------\n";
 
-		char msg[20] = "ping";
-		/*in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
-		cout << "from port " << ntohs(in_addr.sin_port) << endl;
-		sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&in_addr, sizeof(in_addr));
-		printf("\nC=>S:%s\n", &msg[0]);*/
-		sockaddr_in send_addr;
-		send_addr.sin_family = AF_INET;
-		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-		send_addr.sin_port = htons(portServer);
-		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+		//char msg[20] = "ping";
+		///*in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+		//cout << "from port " << ntohs(in_addr.sin_port) << endl;
+		//sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&in_addr, sizeof(in_addr));
+		//printf("\nC=>S:%s\n", &msg[0]);*/
+		//sockaddr_in send_addr;
+		//send_addr.sin_family = AF_INET;
+		//send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		//send_addr.sin_port = htons(portServer);
+		//send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 
-		cout << "from port " << ntohs(send_addr.sin_port) << endl;
-		sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
-		printf("\nC=>S:%s\n", &msg[0]);
+		//cout << "from port " << ntohs(send_addr.sin_port) << endl;
+		//sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		//printf("\nC=>S:%s\n", &msg[0]);
 
-
+		hMutex = CreateMutex(NULL, FALSE, NULL);
 		// make thread.
+		std::thread clientThr(ThteadClientLis, client_sock, out_addr2, portClient);
+		clientThr.detach();
+
 		std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
 		lisentThread.detach();
 
 	}
 
 	sockaddr_in SingleLaunch_Base::InitWinSocket(SOCKET & out_socket, int porttoConnect)
-{
+	{
 		WORD wVersionRequested = MAKEWORD(2, 2);
 		WSADATA wsaData;
 		int err = WSAStartup(wVersionRequested, &wsaData);
@@ -154,19 +166,39 @@ namespace SingleLaunch
 
 	void SingleLaunch::SingleLaunch_Base::ThteadClientLis(SOCKET sock, sockaddr_in addr, const int portID)
 	{
+		WaitForSingleObject(hMutex, INFINITE);
+
+		cout << "----------------\n";
+		cout << "==>Send test msg.\n";
+		cout << "----------------\n";
+
+		char msg[20] = "ping";
+		sockaddr_in send_addr;
+		send_addr.sin_family = AF_INET;
+		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		send_addr.sin_port = htons(portServer);
+		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+
+		cout << "from port " << ntohs(send_addr.sin_port) << endl;
+		sendto(server_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		printf("\nC=>S:%s\n", &msg[0]);
+
+		ReleaseMutex(hMutex);
 	}
 
 	void SingleLaunch::SingleLaunch_Base::ThteadServerLis(SOCKET sock, sockaddr_in addr, const int port)
 	{
 		FOREVER()
 		{
+			WaitForSingleObject(hMutex, INFINITE);
+
 			if (!bAcceptMessages)
 				return;
 			// Обработка присланных пактов
 			//sockaddr_in client_addr;
-			int client_addr_size = sizeof(client_addr);
+			int client_addr_size = sizeof(client_in_addr);
 			int buffSize = sizeof(buff);
-			int bsize = recvfrom(sock, &buff[0], buffSize - 1, 0, (sockaddr *)&client_addr, &client_addr_size);
+			int bsize = recvfrom(sock, &buff[0], buffSize - 1, 0, (sockaddr *)&client_in_addr, &client_addr_size);
 
 			if (bsize == SOCKET_ERROR)
 				printf("recvfrom() error: %d\n", WSAGetLastError());
@@ -175,8 +207,8 @@ namespace SingleLaunch
 				{
 					// Определяем IP-адрес клиента и прочие атрибуты
 					HOSTENT *hostent;
-					hostent = gethostbyaddr((char *)&client_addr.sin_addr, 4, AF_INET);
-					ip = inet_ntoa(client_addr.sin_addr);
+					hostent = gethostbyaddr((char *)&client_in_addr.sin_addr, 4, AF_INET);
+					ip = inet_ntoa(client_in_addr.sin_addr);
 
 					if (hostent != nullptr)
 						senderName = hostent->h_name;
@@ -206,9 +238,9 @@ namespace SingleLaunch
 							cout << "Copies:";
 							counter = netClients.size() + localClients.size();
 							cout << counter << "\n destination ";
-							cout << inet_ntoa(client_addr.sin_addr) << endl;
+							cout << inet_ntoa(client_in_addr.sin_addr) << endl;
 							cout << " from " << senderName.c_str() << endl;
-							cout << " port " << ntohs(client_addr.sin_port) << endl;
+							cout << " port " << ntohs(client_in_addr.sin_port) << endl;
 
 							_itoa_s(counter, buff, 10);
 
@@ -223,7 +255,7 @@ namespace SingleLaunch
 									char const *pchar = s.c_str();
 									/*in_addr.sin_port = htons(port);
 									in_addr.sin_addr.s_addr = inet_addr(pchar);*/
-									sendto(sock, &pchar[0], sizeof(pchar), 0, (sockaddr *)&client_addr, sizeof(client_addr));
+									sendto(sock, &pchar[0], sizeof(pchar), 0, (sockaddr *)&client_in_addr, sizeof(client_in_addr));
 								}
 							}
 						}
@@ -266,7 +298,7 @@ namespace SingleLaunch
 					// LOCAL PORTS.
 					else
 					{
-						std::string localport = std::to_string(ntohs(client_addr.sin_port));
+						std::string localport = std::to_string(ntohs(client_in_addr.sin_port));
 
 						for (vector<string>::iterator it = localClients.begin(); it != localClients.end(); ++it)
 						{
@@ -342,7 +374,7 @@ namespace SingleLaunch
 							// Send message to the client to close it.
 							if (counter >= CopiesTreshold)
 							{
-								addr.sin_port = client_addr.sin_port;
+								addr.sin_port = client_in_addr.sin_port;
 								addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 								sendto(sock, "close_command", sizeof("close_command"), 0, (sockaddr*)&out_addr, sizeof(out_addr));
 
@@ -352,7 +384,7 @@ namespace SingleLaunch
 								localClients.push_back(localport);//ip
 
 								cout << "local client launched" << endl;
-								cout << " port " << ntohs(client_addr.sin_port) << endl;
+								cout << " port " << ntohs(client_in_addr.sin_port) << endl;
 								CountClients();
 
 								char outMSG[2];
@@ -403,7 +435,7 @@ namespace SingleLaunch
 
 						cout << "++++++++++++++++++++++++++" << endl;
 						cout << " incoming: " << endl;
-						cout << " port " << ntohs(client_addr.sin_port) << endl;
+						cout << " port " << ntohs(client_in_addr.sin_port) << endl;
 						cout << " port " << &buff[0] << endl;
 						cout << "++++++++++++++++++++++++++" << endl;
 						cout << "++++++++++++++++++++++++++" << endl;
@@ -411,6 +443,8 @@ namespace SingleLaunch
 						cout << "++++++++++++++++++++++++++" << endl;
 					}
 				}
+
+			ReleaseMutex(hMutex);
 		}
 	}
 
@@ -431,12 +465,12 @@ namespace SingleLaunch
 			//if (intStr != port)
 			{
 				std::cout << ' ' << intStr << endl;
-				std::cout << ntohs(client_addr.sin_port) << endl;
+				std::cout << ntohs(client_in_addr.sin_port) << endl;
 
 
 				std::string s = "close";
 				s.append("_");
-				s.append(std::to_string(ntohs(client_addr.sin_port)));
+				s.append(std::to_string(ntohs(client_in_addr.sin_port)));
 
 
 				const size_t len = s.size();
