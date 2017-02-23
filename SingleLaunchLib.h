@@ -18,6 +18,8 @@ namespace SingleLaunch
 		/*static*/ sockaddr_in InitWinSocket(SOCKET & out_socket, int porttoConnect);
 		/*static*/ int mBindSocket(SOCKET sock, sockaddr_in addr, const int port);
 
+		static void ThteadClientLis(SOCKET sock, sockaddr_in addr, const int portID);
+
 		static void ThteadServerLis(SOCKET sock, sockaddr_in addr, const int portID);
 		static int CountClients();
 
