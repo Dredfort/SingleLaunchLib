@@ -81,10 +81,20 @@ namespace SingleLaunch
 		cout << "----------------\n";
 
 		char msg[20] = "ping";
-		in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+		/*in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 		cout << "from port " << ntohs(in_addr.sin_port) << endl;
 		sendto(my_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&in_addr, sizeof(in_addr));
+		printf("\nC=>S:%s\n", &msg[0]);*/
+		sockaddr_in send_addr;
+		send_addr.sin_family = AF_INET;
+		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		send_addr.sin_port = htons(port);
+		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+
+		cout << "from port " << ntohs(send_addr.sin_port) << endl;
+		sendto(my_sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
 		printf("\nC=>S:%s\n", &msg[0]);
+
 
 		// make thread.
 		std::thread  lisentThread(ThteadServerLis, my_sock, in_addr, port);
