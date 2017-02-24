@@ -72,10 +72,8 @@ namespace SingleLaunch
 
 		// Inti WinSock
 		out_addr2 = InitWinSocket(client_sock, portClient);
-		int a = mBindSocket(client_sock, out_addr2, portClient);
+		int clientBind = mBindSocket(client_sock, out_addr2, portClient);
 
-		out_addr = InitWinSocket(server_sock, portServer);
-		int b = mBindSocket(server_sock, out_addr, portServer);
 
 
 
@@ -97,8 +95,11 @@ namespace SingleLaunch
 		std::thread clientThr(ThteadClientLis, client_sock, out_addr2, portClient);
 		clientThr.detach();
 
-		if (a == 0 && b == 0)
+		if (clientBind == 0)
 		{
+			out_addr = InitWinSocket(server_sock, portServer);
+			int serverBind = mBindSocket(server_sock, out_addr, portServer);
+
 			std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
 			lisentThread.detach();
 
@@ -190,23 +191,28 @@ ReleaseMutex(hMutex);
 			{
 
 				// TODO:: get and accept messages here
-				std::string str(buff);
+				std::string buffStr(buff);
 				std::string closeCommandStr("close_command");
+				std::string closeStr("close");
+
+				size_t	findClose = buffStr.find(closeStr);
+				size_t findCloseCommand = buffStr.find(closeCommandStr);
 
 				std::string qwe = std::to_string(portClient);
-				size_t pos = str.find(qwe);
+				size_t pos = buffStr.find(qwe);
 				if (pos == string::npos)
 				{
-					localPort = str;
+					localPort = buffStr;
 				}
+				
 
-
-				size_t position = str.find(closeCommandStr);
-				if (position != string::npos)
+				if (findCloseCommand != string::npos)
 				{
+					std::string check;
+					check.append(buffStr.substr(findCloseCommand + 1));
 					// TODO:: Send message to the client to close it.
-					cout << " You launch maximum copies count! - " << counter << endl;
-					cout << " Q - to end session. " << counter << endl;
+					cout << " You launch maximum copies count! - " << check << endl;
+					cout << " Q - to end session. " << endl;
 					char myChar = ' ';
 					while (myChar != 'q') {
 
@@ -232,6 +238,23 @@ ReleaseMutex(hMutex);
 						, 0, (sockaddr*)&send_addr, sizeof(send_addr));
 
 					return;
+				}
+				else if (findClose != string::npos)
+				{
+					WaitForSingleObject(hMutex, INFINITE);
+
+					cout << "--------------------" << endl;
+					cout << "=> local client exit" << endl;
+					cout << "--------------------" << endl;
+
+					
+					out_addr = InitWinSocket(server_sock, portServer);
+					int serverBind = mBindSocket(server_sock, out_addr, portServer);
+
+					std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
+					lisentThread.detach();
+
+					ReleaseMutex(hMutex);
 				}
 			}
 		}
@@ -281,7 +304,7 @@ WaitForSingleObject(hMutex, INFINITE);
 					}
 					buff[bsize] = '\0';
 
-					// NET PORTS.
+//// NET PORTS.
 					if (senderName != hostName &&
 						match == false)
 					{
@@ -292,9 +315,10 @@ WaitForSingleObject(hMutex, INFINITE);
 							// Вывод на экран 
 							printf("S=>C:%s\n", &buff[0]);
 
-							cout << "Copies:";
-							counter = netClients.size() + localClients.size();
-							cout << counter << "\n destination ";
+							/*cout << "Copies:";
+							counter = netClients.size() + localClients.size();*/
+							CountClients();
+							cout << /*counter <<*/ "\n destination ";
 							cout << inet_ntoa(client_in_addr.sin_addr) << endl;
 							cout << " from " << senderName.c_str() << endl;
 							cout << " port " << ntohs(client_in_addr.sin_port) << endl;
@@ -352,7 +376,7 @@ WaitForSingleObject(hMutex, INFINITE);
 								cout << "fail to remove net player from arr!" << endl;
 						}
 					}
-					// LOCAL PORTS.
+//// LOCAL PORTS.
 					else
 					{
 						std::string localport = std::to_string(ntohs(client_in_addr.sin_port));
@@ -366,38 +390,40 @@ WaitForSingleObject(hMutex, INFINITE);
 							}
 						}
 
-						std::string str(buff);
-						std::string closeCommandStr("close_command");
-						size_t position = str.find(closeCommandStr);
-						if (position != string::npos)
-						{
-							// TODO:: Send message to the client to close it.
-							cout << " You launch maximum copies count! - " << counter << endl;
-							cout << " Q - to end session. " << counter << endl;
-							char myChar = ' ';
-							while (myChar != 'q') {
+						std::string buffStr(buff);
+						size_t position;
 
-								myChar = getchar();
-							}
-							EndSession();
+						//std::string closeCommandStr("close_command");						
+						//position = buffStr.find(closeCommandStr);
+						//if (position != string::npos)
+						//{
+						//	// TODO:: Send message to the client to close it.
+						//	cout << " You launch maximum copies count! - " << counter << endl;
+						//	cout << " Q - to end session. " << counter << endl;
+						//	char myChar = ' ';
+						//	while (myChar != 'q') {
 
-							return;
-						}
+						//		myChar = getchar();
+						//	}
+						//	EndSession();
+
+						//	return;
+						//}
 
 						std::string closeStr("close");
-						position = str.find(closeStr);
+						position = buffStr.find(closeStr);
 						if (position != string::npos)
 						{
 							cout << "--------------------" << endl;
 							cout << "=> local client exit" << endl;
 							cout << "--------------------" << endl;
 							//  remove target client.
-							size_t result = str.find("_");
+							size_t result = buffStr.find("_");
 
 							if (result != string::npos)
 							{
 								std::string check;
-								check.append(str.substr(result + 1));
+								check.append(buffStr.substr(result + 1));
 
 								size_t elemId = 0;
 								for (vector<string>::iterator it = localClients.begin(); it != localClients.end(); ++it)
@@ -414,14 +440,6 @@ WaitForSingleObject(hMutex, INFINITE);
 								}
 
 								CountClients();
-
-								// Try to bind socket.
-
-								/*closesocket(server_sock);
-
-								InitWinSocket();
-								in_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
-								mBindSocket(server_sock, in_addr, port);*/ // TODO:: udnarstand why this shit not rebind!
 							}
 							else
 								cout << "fail to remove local player from arr!" << endl;
@@ -433,7 +451,15 @@ WaitForSingleObject(hMutex, INFINITE);
 							{
 								addr.sin_port = client_in_addr.sin_port;
 								addr.sin_addr.s_addr = inet_addr(SERVERADDR);
-								sendto(sock, "close_command", sizeof("close_command"), 0,
+
+								std::string stringMsg = "close_command";
+								stringMsg.append("_");
+								stringMsg.append(std::to_string(counter));
+
+								const size_t len = stringMsg.size();
+								const char *pchar = stringMsg.c_str();
+
+								sendto(sock, pchar, len, 0,
 									(sockaddr*)&client_in_addr/*out_addr*/,
 									sizeof(client_in_addr/*out_addr*/));
 
@@ -592,7 +618,14 @@ ReleaseMutex(hMutex);
 			closesocket(server_sock);
 			server_sock = INVALID_SOCKET;
 		}
+		if (client_sock != INVALID_SOCKET)
+		{
+			closesocket(client_sock);
+			client_sock = INVALID_SOCKET;
+		}
 
+		ReleaseMutex(hMutex);
+		CloseHandle(hMutex);
 		ReleaseMutex(mut);
 		CloseHandle(mut);
 	}

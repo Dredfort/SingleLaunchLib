@@ -15,8 +15,8 @@ namespace SingleLaunch
 	public:
 		SingleLaunch_Base(unsigned int maxCopies);
 
-		/*static*/ sockaddr_in InitWinSocket(SOCKET & out_socket, int porttoConnect);
-		/*static*/ int mBindSocket(SOCKET sock, sockaddr_in addr, const int port);
+		static sockaddr_in InitWinSocket(SOCKET & out_socket, int porttoConnect);
+		static int mBindSocket(SOCKET sock, sockaddr_in addr, const int port);
 
 		static void ThteadClientLis(SOCKET sock, sockaddr_in addr, const int portID);
 
