@@ -159,7 +159,7 @@ namespace SingleLaunch
 WaitForSingleObject(hMutex, INFINITE);
 
 		cout << "----------------\n";
-		cout << "==>Send test msg.\n";
+		cout << "==> Try to ping the server.\n";
 		cout << "----------------\n";
 
 		char msg[20] = "ping";
@@ -246,15 +246,16 @@ ReleaseMutex(hMutex);
 					cout << "--------------------" << endl;
 					cout << "=> local client exit" << endl;
 					cout << "--------------------" << endl;
+					Sleep(1000);
 
 					
 					out_addr = InitWinSocket(server_sock, portServer);
 					int serverBind = mBindSocket(server_sock, out_addr, portServer);
 
+					ReleaseMutex(hMutex);
+
 					std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
 					lisentThread.detach();
-
-					ReleaseMutex(hMutex);
 				}
 			}
 		}
@@ -280,7 +281,9 @@ WaitForSingleObject(hMutex, INFINITE);
 			if (bsize == SOCKET_ERROR)
 			{
 				printf("recvfrom() error: %d\n", WSAGetLastError());
+				closesocket(sock);
 				ReleaseMutex(hMutex);
+				ExitThread(0);
 			}
 			else
 				if (bAcceptMessages)
@@ -391,28 +394,13 @@ WaitForSingleObject(hMutex, INFINITE);
 						}
 
 						std::string buffStr(buff);
-						size_t position;
-
-						//std::string closeCommandStr("close_command");						
-						//position = buffStr.find(closeCommandStr);
-						//if (position != string::npos)
-						//{
-						//	// TODO:: Send message to the client to close it.
-						//	cout << " You launch maximum copies count! - " << counter << endl;
-						//	cout << " Q - to end session. " << counter << endl;
-						//	char myChar = ' ';
-						//	while (myChar != 'q') {
-
-						//		myChar = getchar();
-						//	}
-						//	EndSession();
-
-						//	return;
-						//}
-
 						std::string closeStr("close");
-						position = buffStr.find(closeStr);
-						if (position != string::npos)
+						std::string pingString("ping");
+						
+						size_t findCloseStr = buffStr.find(closeStr);
+						size_t findPingStr = buffStr.find(pingString);
+
+						if (findCloseStr != string::npos)
 						{
 							cout << "--------------------" << endl;
 							cout << "=> local client exit" << endl;
@@ -444,7 +432,7 @@ WaitForSingleObject(hMutex, INFINITE);
 							else
 								cout << "fail to remove local player from arr!" << endl;
 						}
-						else if (match == false && std::strcmp(buff, "ping") == 0)
+						else if(match ==false && findPingStr != string::npos)// (match == false && std::strcmp(buff, "ping") == 0)
 						{
 							// Send message to the client to close it.
 							if (counter >= CopiesTreshold)
@@ -468,9 +456,11 @@ WaitForSingleObject(hMutex, INFINITE);
 							{
 								localClients.push_back(localport);//ip
 
+								cout << "=====================" << endl;
 								cout << "local client launched" << endl;
 								cout << " port " << ntohs(client_in_addr.sin_port) << endl;
 								CountClients();
+								cout << "=====================" << endl;
 
 								char outMSG[2];
 								_itoa_s(counter, outMSG, 10);
@@ -518,14 +508,14 @@ WaitForSingleObject(hMutex, INFINITE);
 							}
 						}
 
-						cout << "++++++++++++++++++++++++++" << endl;
+						/*cout << "++++++++++++++++++++++++++" << endl;
 						cout << " incoming: " << endl;
 						cout << " port " << ntohs(client_in_addr.sin_port) << endl;
 						cout << " port " << &buff[0] << endl;
 						cout << "++++++++++++++++++++++++++" << endl;
 						cout << "++++++++++++++++++++++++++" << endl;
 						CountClients();
-						cout << "++++++++++++++++++++++++++" << endl;
+						cout << "++++++++++++++++++++++++++" << endl;*/
 					}
 				}
 
@@ -581,11 +571,11 @@ ReleaseMutex(hMutex);
 				sendto(server_sock, &pchar[0], len
 					, 0, (sockaddr*)&out_addr, sizeof(out_addr));
 			}
-			Sleep(1000);
+			//Sleep(1000);
 		}
 
 		// net
-		for (vector<string>::iterator it = netClients.begin(); it != netClients.end(); ++it)
+		/*for (vector<string>::iterator it = netClients.begin(); it != netClients.end(); ++it)
 		{
 			std::string intStr = *it;
 			if (intStr != ip)
@@ -601,7 +591,7 @@ ReleaseMutex(hMutex);
 				out_addr.sin_addr.s_addr = inet_addr(pchar);
 				sendto(server_sock, &pchar[0], len, 0, (sockaddr*)&out_addr, sizeof(out_addr));
 			}
-		}
+		}*/
 
 		WSACleanup();
 		closesocket(server_sock);
@@ -609,18 +599,19 @@ ReleaseMutex(hMutex);
 
 	SingleLaunch_Base::~SingleLaunch_Base()
 	{
+			closesocket(client_sock);
+			closesocket(server_sock);
+
 		cout << " --------------" << endl;
 		cout << "> Close program <" << endl;
 		cout << " --------------" << endl;
 
 		if (server_sock != INVALID_SOCKET)
 		{
-			closesocket(server_sock);
 			server_sock = INVALID_SOCKET;
 		}
 		if (client_sock != INVALID_SOCKET)
 		{
-			closesocket(client_sock);
 			client_sock = INVALID_SOCKET;
 		}
 
