@@ -534,11 +534,11 @@ ReleaseMutex(hMutex);
 	{
 		bAcceptMessages = false;
 
-		sockaddr_in send_addr;
+		/*sockaddr_in send_addr;
 		send_addr.sin_family = AF_INET;
 		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 		send_addr.sin_port = htons(portServer);
-		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);*/
 
 				std::string s = "close";
 				s.append("_");
@@ -548,14 +548,14 @@ ReleaseMutex(hMutex);
 				const char *pchar = s.c_str();
 
 
-		sendto(client_sock/*server_sock*/, &pchar[0], len
-			, 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		//sendto(client_sock/*server_sock*/, &pchar[0], len
+		//	, 0, (sockaddr*)&send_addr, sizeof(send_addr));
 
 		// local
 		for (vector<string>::iterator it = localClients.begin(); it != localClients.end(); ++it)
 		{
 			int intStr = std::stoi(*it);
-			//if (intStr != port)
+			if (intStr != portServer)
 			{
 				std::cout << ' ' << intStr << endl;
 				std::cout << ntohs(client_in_addr.sin_port) << endl;
