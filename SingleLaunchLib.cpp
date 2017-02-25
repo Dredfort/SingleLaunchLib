@@ -37,6 +37,8 @@ sockaddr_in client_in_addr2;
 
 std::string localPort;
 
+int serverBind = -1;
+
 HANDLE mut;
 
 HANDLE hMutex;
@@ -98,7 +100,7 @@ namespace SingleLaunch
 		if (clientBind == 0)
 		{
 			out_addr = InitWinSocket(server_sock, portServer);
-			int serverBind = mBindSocket(server_sock, out_addr, portServer);
+			serverBind = mBindSocket(server_sock, out_addr, portServer);
 
 			std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
 			lisentThread.detach();
@@ -190,22 +192,41 @@ ReleaseMutex(hMutex);
 			else
 			{
 
+				if (serverBind == -1)
+				{
+					cout << "++++++++++++++++++++++++++" << endl;
+					cout << " incoming: " << endl;
+					cout << " port " << ntohs(client_in_addr2.sin_port) << endl;
+					cout << " message: " << &buff[0] << endl;
+					cout << "++++++++++++++++++++++++++" << endl;
+				}
+
 				// TODO:: get and accept messages here
 				std::string buffStr(buff);
+
+				std::string pingClientsStr("ping_clients");
 				std::string closeCommandStr("close_command");
 				std::string closeStr("close");
 
 				size_t	findClose = buffStr.find(closeStr);
 				size_t findCloseCommand = buffStr.find(closeCommandStr);
+				size_t findPingClients = buffStr.find(pingClientsStr);
 
 				std::string qwe = std::to_string(portClient);
+
 				size_t pos = buffStr.find(qwe);
 				if (pos == string::npos)
 				{
 					localPort = buffStr;
 				}
 				
-
+				if (findPingClients != string::npos)
+				{
+					cout << "----------------\n";
+					cout << "==> Send `ping` to server.\n";
+					cout << "----------------\n";
+					sendto(sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
+				}
 				if (findCloseCommand != string::npos)
 				{
 					std::string check;
@@ -250,7 +271,7 @@ ReleaseMutex(hMutex);
 
 					
 					out_addr = InitWinSocket(server_sock, portServer);
-					int serverBind = mBindSocket(server_sock, out_addr, portServer);
+					serverBind = mBindSocket(server_sock, out_addr, portServer);
 
 					ReleaseMutex(hMutex);
 
@@ -264,6 +285,22 @@ ReleaseMutex(hMutex);
 
 	void SingleLaunch::SingleLaunch_Base::ThteadServerLis(SOCKET sock, sockaddr_in addr, const int port)
 	{
+		cout << "----------------\n";
+		cout << "==> Try to ping clients.\n";
+		cout << "----------------\n";
+
+		char msg[20] = "ping_clients";
+		sockaddr_in send_addr;
+		send_addr.sin_family = AF_INET;
+		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		send_addr.sin_port = htons(portClient);
+		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+
+		cout << "from port " << ntohs(send_addr.sin_port) << endl;
+		sendto(sock/*server_sock*/, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		printf("\nS=>C:%s\n", &msg[0]);
+
+
 		FOREVER()
 		{
 			Sleep(1000);
@@ -502,7 +539,7 @@ WaitForSingleObject(hMutex, INFINITE);
 									}
 								}
 							}
-							if (!portMatch)
+							if (!portMatch && findPingStr == string::npos)
 							{
 								localClients.push_back(incomStr);
 							}
@@ -534,22 +571,24 @@ ReleaseMutex(hMutex);
 	{
 		bAcceptMessages = false;
 
-		/*sockaddr_in send_addr;
-		send_addr.sin_family = AF_INET;
-		send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-		send_addr.sin_port = htons(portServer);
-		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);*/
+		std::string s = "close";
+		s.append("_");
+		s.append(localPort /*std::to_string(ntohs(client_in_addr.sin_port))*/);
 
-				std::string s = "close";
-				s.append("_");
-				s.append(localPort /*std::to_string(ntohs(client_in_addr.sin_port))*/);
-
-				const size_t len = s.size();
-				const char *pchar = s.c_str();
+		const size_t len = s.size();
+		const char *pchar = s.c_str();
 
 
-		//sendto(client_sock/*server_sock*/, &pchar[0], len
-		//	, 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		if (serverBind == -1)
+		{
+			sockaddr_in send_addr;
+			send_addr.sin_family = AF_INET;
+			send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+			send_addr.sin_port = htons(portServer);
+			send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
+			sendto(client_sock/*server_sock*/, &pchar[0], len
+				, 0, (sockaddr*)&send_addr, sizeof(send_addr));
+		}
 
 		// local
 		for (vector<string>::iterator it = localClients.begin(); it != localClients.end(); ++it)
