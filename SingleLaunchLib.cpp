@@ -154,7 +154,7 @@ namespace SingleLaunch
 		}
 		else
 		{
-			cout << "++++++++++++++++++++++++++" << endl;
+			cout << "\n++++++++++++++++++++++++++" << endl;
 			cout << "Socket successfully binded!" << endl;
 			cout << "++++++++++++++++++++++++++" << endl;
 		}
@@ -165,9 +165,9 @@ namespace SingleLaunch
 	{
 		WaitForSingleObject(hMutex, INFINITE);
 
-		cout << "-----------------------------\n";
-		cout << "C:==> Try to ping the server.\n";
-		cout << "-----------------------------\n";
+		cout << "\n-----------------------------" << endl;
+		cout << "C:==> Try to ping the server." << endl;
+		cout << "-----------------------------" << endl;
 
 		char msg[20] = "ping";
 		sockaddr_in send_addr;
@@ -176,9 +176,10 @@ namespace SingleLaunch
 		send_addr.sin_port = htons(portServer);
 		send_addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 
-		cout << "from port " << ntohs(send_addr.sin_port) << endl;
+		//cout << "from port " << ntohs(send_addr.sin_port) << endl;
 		sendto(sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
-		printf("\nC=>S:%s\n", &msg[0]);
+		//printf("\nC=>S:%s\n", &msg[0]);
+		cout << "\nC:==> Start lisent port." << endl;
 
 		FOREVER()
 		{
@@ -193,16 +194,22 @@ namespace SingleLaunch
 
 			int bsize = recvfrom(sock, &buff[0], buffSize - 1, 0, (sockaddr *)&client_in_addr2, &client_addr_size);
 			if (bsize == SOCKET_ERROR)
+			{
 				printf("recvfrom() error: %d\n", WSAGetLastError());
+
+				closesocket(sock);
+				ReleaseMutex(hMutex);
+				ExitThread(0);
+			}
 			else
 			{
 
 				if (serverBind == -1)
 				{
-					cout << "++++++++++++++++++++++++++" << endl;
-					cout << "C:==> incoming: " << endl;
-					cout << "C:==> port " << ntohs(client_in_addr2.sin_port) << endl;
-					cout << "C:==> message: " << &buff[0] << endl;
+					cout << "\n++++++++++++++++++++++++++" << endl;
+					cout << "C:> incoming: " << endl;
+					cout << "C:> port " << ntohs(client_in_addr2.sin_port) << endl;
+					cout << "C:> message: " << &buff[0] << endl;
 					cout << "++++++++++++++++++++++++++" << endl;
 				}
 
@@ -224,9 +231,9 @@ namespace SingleLaunch
 
 				if (findPingClients != string::npos)
 				{
-					cout << "----------------------------\n";
-					cout << "C:==> Send `ping` response to server.\n";
-					cout << "----------------------------\n";
+					cout << "\n-------------------------------------" << endl;
+					cout << "C:==> Send `ping` response to server." << endl;
+					cout << "-------------------------------------" << endl;
 					sendto(sock, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
 				}
 				else if (findCloseCommand != string::npos)
@@ -234,7 +241,7 @@ namespace SingleLaunch
 					std::string check;
 					check.append(buffStr.substr(findCloseCommand + 1));
 					// TODO:: Send message to the client to close it.
-					cout << " You launch maximum copies count! - " << check << endl;
+					cout << "\n You launch maximum copies count! - " << check << endl;
 					cout << " Q - to end session. " << endl;
 					char myChar = ' ';
 					while (myChar != 'q') {
@@ -264,7 +271,7 @@ namespace SingleLaunch
 				{
 					WaitForSingleObject(hMutex, INFINITE);
 
-					cout << "--------------------------------------------------" << endl;
+					cout << "\n--------------------------------------------------" << endl;
 					cout << "C:==> Server is exit. Try to create server thread." << endl;
 					cout << "--------------------------------------------------" << endl;
 					Sleep(3000);
@@ -277,14 +284,14 @@ namespace SingleLaunch
 
 					if (serverBind == 0)
 					{
-						cout << "\nC:==> Starts to create server thread..." << endl;
+						cout << "\nC:> Starts to create server thread..." << endl;
 						std::thread  lisentThread(ThteadServerLis, server_sock, out_addr, portServer);
 						lisentThread.detach();
 					}
 					else
 					{
 						closesocket(server_sock);
-						cout << "-----------------------------------" << endl;
+						cout << "\n-----------------------------------" << endl;
 						cout << "\nC:==> fail create server thread.." << endl;
 						cout << "-----------------------------------" << endl;
 					}
@@ -301,11 +308,9 @@ namespace SingleLaunch
 	void SingleLaunch::SingleLaunch_Base::ThteadServerLis(SOCKET sock, sockaddr_in addr, const int port)
 	{
 
-		cout << "++++++++++++++++++++++++++++++++++++++\n";
-		cout << "S:==> ServerCreated! <== \n Send ping request to all clients.\n";
-		cout << "++++++++++++++++++++++++++++++++++++++\n";
-
-		//	Sleep(1000);
+		cout << "\n+++++++++++++++++++++++++++++++++++++++" << endl;
+		cout << "S:==> ServerCreated! <== \n S:>Send ping request to all clients." << endl;
+		cout << "++++++++++++++++++++++++++++++++++++++" << endl;
 
 		char msg[20] = "ping_clients";
 		sockaddr_in send_addr;
@@ -315,19 +320,15 @@ namespace SingleLaunch
 
 		//send_addr.sin_port = htons(portClient);
 
-		cout << "S:==> start picking clients .\n";
+		cout << "S:==> start picking clients."<< endl;
 		for (auto i = 49152; i <= 65535; i++)
 		{
 			send_addr.sin_port = htons(i);
 
 			sendto(sock/*server_sock*/, &msg[0], sizeof(msg), 0, (sockaddr*)&send_addr, sizeof(send_addr));
 		}
-		cout << "S:==> end picking clients .\n";
-
-
-		//cout << "from port " << ntohs(send_addr.sin_port) << endl;
-		//printf("\nS=>C:%s\n", &msg[0]);
-
+		cout << "\nS:> end picking clients." << endl;
+		cout << "\nS:> Start lisent port." << endl;
 		FOREVER()
 		{
 
@@ -413,7 +414,7 @@ namespace SingleLaunch
 						size_t position = str.find(matchedStr);
 						if (position != string::npos)
 						{
-							cout << "---------------" << endl;
+							cout << "\n---------------" << endl;
 							cout << "net client exit" << endl;
 							cout << "---------------" << endl;
 
@@ -442,7 +443,7 @@ namespace SingleLaunch
 								cout << "fail to remove net player from arr!" << endl;*/
 						}
 					}
-					//// LOCAL PORTS.
+	//// LOCAL PORTS.
 					else
 					{
 						std::string localport = std::to_string(ntohs(client_in_addr.sin_port));
@@ -465,9 +466,9 @@ namespace SingleLaunch
 
 						if (findCloseStr != string::npos)
 						{
-							cout << "--------------------" << endl;
+							cout << "\n-----------------------" << endl;
 							cout << "S:==> local client exit" << endl;
-							cout << "--------------------" << endl;
+							cout << "-----------------------" << endl;
 
 							counter--;
 
@@ -505,9 +506,8 @@ namespace SingleLaunch
 							// Send message to the client to close it.
 							if (counter > CopiesTreshold)
 							{
-								cout << "S:==> launched [" << counter << "] copies of application with limit [" << CopiesTreshold << "]" << endl;
-
-
+								cout << "\nS:==> launched [" << counter << "] copies of application with limit [" << CopiesTreshold << "]" << endl;
+								
 								addr.sin_port = client_in_addr.sin_port;
 								addr.sin_addr.s_addr = inet_addr(SERVERADDR);
 
@@ -521,15 +521,14 @@ namespace SingleLaunch
 								sendto(sock, pchar, len, 0,
 									(sockaddr*)&client_in_addr/*out_addr*/,
 									sizeof(client_in_addr/*out_addr*/));
-
 							}
 							else
 							{
 								//localClients.push_back(localport);//ip
 
-								cout << "==========================" << endl;
+								cout << "\n==========================" << endl;
 								cout << "S:==>local client launched" << endl;
-								cout << "S:==> port " << ntohs(client_in_addr.sin_port) << endl;
+								cout << "S:> port " << ntohs(client_in_addr.sin_port) << endl;
 								//CountClients();
 								cout << "==========================" << endl;
 
